@@ -1,0 +1,7 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/recover/confirm/route": "app/api/recover/confirm/route.js",
+  "/api/webhooks/paystack/route": "app/api/webhooks/paystack/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/recover/[token]/page": "app/recover/[token]/page.js"
+}

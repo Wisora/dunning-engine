@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST='{"app\\\\recover\\\\[token]\\\\page.tsx -> @paystack/inline-js":{"id":4655,"files":["static/chunks/655.e08bb5bb1f556bcd.js"]}}';
