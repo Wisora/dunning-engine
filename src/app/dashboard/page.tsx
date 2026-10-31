@@ -20,6 +20,7 @@ export default function FounderDashboard() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [emailInput, setEmailInput] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   // --- Dashboard State ---
@@ -61,7 +62,6 @@ export default function FounderDashboard() {
   const fetchTenantData = async (userId: string) => {
     setDataLoading(true);
     try {
-      // 2.1 Fetch Tenant Record
       const { data: tenantData, error: tenantErr } = await supabase
         .from('tenants')
         .select('*')
@@ -81,7 +81,6 @@ export default function FounderDashboard() {
           resend_api_key: tenantData.resend_api_key || '',
         });
 
-        // 2.2 Fetch Failed Invoices
         const { data: invoiceData, error: invoiceErr } = await supabase
           .from('failed_invoices')
           .select('*')
@@ -155,7 +154,7 @@ export default function FounderDashboard() {
     setInvoices([]);
   };
 
-  // 5. Settings Save Handler (Upsert Tenant)
+  // 5. Settings Save Handler
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.user?.id) return;
@@ -164,7 +163,6 @@ export default function FounderDashboard() {
 
     try {
       if (tenant) {
-        // Update existing tenant
         const { error } = await supabase
           .from('tenants')
           .update({
@@ -180,7 +178,6 @@ export default function FounderDashboard() {
         if (error) throw error;
         setSettingsNotification('Settings successfully saved.');
       } else {
-        // Create initial tenant
         const { data, error } = await supabase
           .from('tenants')
           .insert({
@@ -217,7 +214,7 @@ export default function FounderDashboard() {
   };
 
   // ==========================================
-  // VIEW: AUTH SCREEN (If Not Logged In)
+  // VIEW: AUTH SCREEN (Centered & With Eye Icon)
   // ==========================================
   if (authLoading) {
     return (
@@ -235,10 +232,10 @@ export default function FounderDashboard() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+      <main className="min-h-screen w-full bg-neutral-950 flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="flex items-center space-x-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
               DE
             </div>
             <div>
@@ -259,16 +256,43 @@ export default function FounderDashboard() {
                 className="w-full px-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 focus:outline-none focus:border-indigo-500 transition"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-1">Password</label>
-              <input
-                type="password"
-                required
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 focus:outline-none focus:border-indigo-500 transition"
-              />
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-medium text-neutral-400">Password</label>
+                {authMode === 'signup' && (
+                  <span className="text-[10px] text-neutral-500 font-mono">Min 6 characters</span>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 focus:outline-none focus:border-indigo-500 transition pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-200 transition p-1 focus:outline-none flex items-center justify-center"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    // Eye slash (hide) icon
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
+                    </svg>
+                  ) : (
+                    // Eye (show) icon
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             {authError && (
@@ -279,7 +303,7 @@ export default function FounderDashboard() {
 
             <button
               type="submit"
-              className="w-full bg-neutral-100 hover:bg-white text-neutral-950 font-semibold py-2.5 rounded-xl text-sm transition"
+              className="w-full bg-neutral-100 hover:bg-white text-neutral-950 font-semibold py-2.5 rounded-xl text-sm transition shadow"
             >
               {authMode === 'login' ? 'Sign In' : 'Create Founder Account'}
             </button>
@@ -290,7 +314,7 @@ export default function FounderDashboard() {
                 setAuthMode(authMode === 'login' ? 'signup' : 'login');
                 setAuthError(null);
               }}
-              className="w-full text-center text-xs text-neutral-400 hover:text-neutral-200 transition"
+              className="w-full text-center text-xs text-neutral-400 hover:text-neutral-200 transition pt-2"
             >
               {authMode === 'login'
                 ? "Don't have a workspace? Register here"
@@ -311,7 +335,7 @@ export default function FounderDashboard() {
       <header className="border-b border-neutral-800/80 bg-neutral-950/70 backdrop-blur sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-md shadow-indigo-600/30">
               DE
             </div>
             <div>
@@ -610,7 +634,7 @@ export default function FounderDashboard() {
               <button
                 type="submit"
                 disabled={savingSettings}
-                className="px-5 py-2.5 bg-neutral-100 hover:bg-white text-neutral-950 font-semibold rounded-xl text-xs transition disabled:opacity-50"
+                className="px-5 py-2.5 bg-neutral-100 hover:bg-white text-neutral-950 font-semibold rounded-xl text-xs transition disabled:opacity-50 shadow"
               >
                 {savingSettings ? 'Saving...' : 'Save Configuration'}
               </button>
