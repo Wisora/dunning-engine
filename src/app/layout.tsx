@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,9 +13,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-slate-950 text-slate-100 antialiased min-h-screen">
+    <html lang="en" className="h-full bg-neutral-950">
+      <body className="h-full bg-neutral-950 text-neutral-100 antialiased selection:bg-indigo-500 selection:text-white">
         {children}
+        
+        {/* Load Paystack Inline SDK */}
+        <Script
+          src="https://js.paystack.co/v1/inline.js"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

@@ -13,6 +13,30 @@ const supabase = createClient<Database>(
 type Tenant = Database['public']['Tables']['tenants']['Row'];
 type FailedInvoice = Database['public']['Tables']['failed_invoices']['Row'];
 
+const TIERS = [
+  {
+    name: 'Starter',
+    priceZar: 499,
+    priceUsd: 49,
+    interval: 'month',
+    description: 'For early-stage SaaS founders automating their first failed invoices.',
+  },
+  {
+    name: 'Growth',
+    priceZar: 1299,
+    priceUsd: 129,
+    interval: 'month',
+    description: 'For scaling companies with higher volume and custom email branding.',
+  },
+  {
+    name: 'Scale',
+    priceZar: 2999,
+    priceUsd: 299,
+    interval: 'month',
+    description: 'For high-volume enterprises requiring multi-gateway support.',
+  },
+];
+
 export default function FounderDashboard() {
   // --- Auth State ---
   const [session, setSession] = useState<Session | null>(null);
@@ -21,13 +45,14 @@ export default function FounderDashboard() {
   const [emailInput, setEmailInput] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [rememberMe, setRememberMe] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
   // --- Dashboard State ---
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [invoices, setInvoices] = useState<FailedInvoice[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'pricing'>('overview');
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   // --- Settings Form State ---
@@ -38,6 +63,7 @@ export default function FounderDashboard() {
     paystack_public_key: '',
     paystack_secret_key: '',
     resend_api_key: '',
+    payoneer_email: '',
   });
   const [savingSettings, setSavingSettings] = useState<boolean>(false);
   const [settingsNotification, setSettingsNotification] = useState<string | null>(null);
@@ -79,6 +105,7 @@ export default function FounderDashboard() {
           paystack_public_key: tenantData.paystack_public_key || '',
           paystack_secret_key: tenantData.paystack_secret_key || '',
           resend_api_key: tenantData.resend_api_key || '',
+          payoneer_email: (tenantData as any).payoneer_email || '',
         });
 
         const { data: invoiceData, error: invoiceErr } = await supabase
@@ -172,7 +199,8 @@ export default function FounderDashboard() {
             paystack_public_key: settingsForm.paystack_public_key || null,
             paystack_secret_key: settingsForm.paystack_secret_key || null,
             resend_api_key: settingsForm.resend_api_key || null,
-          })
+            payoneer_email: settingsForm.payoneer_email || null,
+          } as any)
           .eq('id', tenant.id);
 
         if (error) throw error;
@@ -188,7 +216,8 @@ export default function FounderDashboard() {
             paystack_public_key: settingsForm.paystack_public_key || null,
             paystack_secret_key: settingsForm.paystack_secret_key || null,
             resend_api_key: settingsForm.resend_api_key || null,
-          })
+            payoneer_email: settingsForm.payoneer_email || null,
+          } as any)
           .select()
           .single();
 
@@ -205,6 +234,43 @@ export default function FounderDashboard() {
     }
   };
 
+  const handlePaystackCheckout = (tier: typeof TIERS[0]) => {
+    if (!session?.user?.email) return;
+    
+    // Checks for Paystack Inline script
+    const paystackPop = (window as any).PaystackPop;
+    if (!paystackPop) {
+      alert('Paystack SDK is loading. Please try again in a moment.');
+      return;
+    }
+
+    const handler = paystackPop.setup({
+      key: settingsForm.paystack_public_key || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
+      email: session.user.email,
+      amount: tier.priceZar * 100, // Subunits in ZAR (cents)
+      currency: 'ZAR',
+      callback: function (response: { reference: string }) {
+        alert(`Successfully subscribed to ${tier.name} (R${tier.priceZar}/mo)! Ref: ${response.reference}`);
+      },
+      onClose: function () {
+        // Window closed
+      },
+    });
+    handler.openIframe();
+  };
+
+  const handlePayoneerCheckout = (tier: typeof TIERS[0]) => {
+    if (!settingsForm.payoneer_email) {
+      alert('Please configure your Payoneer Account Email in Settings first.');
+      setActiveTab('settings');
+      return;
+    }
+
+    alert(
+      `To subscribe to ${tier.name} ($${tier.priceUsd} USD/mo) via Payoneer, please send your payment request or direct transfer to: ${settingsForm.payoneer_email}`
+    );
+  };
+
   const copyRecoveryLink = (token: string) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const url = `${origin}/recover/${token}`;
@@ -214,7 +280,7 @@ export default function FounderDashboard() {
   };
 
   // ==========================================
-  // VIEW: AUTH SCREEN (Centered & With Eye Icon)
+  // VIEW: AUTH SCREEN (Centered perfectly)
   // ==========================================
   if (authLoading) {
     return (
@@ -232,7 +298,7 @@ export default function FounderDashboard() {
 
   if (!session) {
     return (
-      <main className="min-h-screen w-full bg-neutral-950 flex items-center justify-center p-4">
+      <div className="min-h-screen w-full bg-neutral-950 flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="flex items-center space-x-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
@@ -280,12 +346,10 @@ export default function FounderDashboard() {
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    // Eye slash (hide) icon
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
                     </svg>
                   ) : (
-                    // Eye (show) icon
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -293,6 +357,19 @@ export default function FounderDashboard() {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded bg-neutral-950 border-neutral-800 text-indigo-600 focus:ring-indigo-500/20 focus:ring-offset-0 cursor-pointer accent-indigo-600"
+                />
+                <span className="text-xs text-neutral-400 hover:text-neutral-300 transition">Remember me</span>
+              </label>
             </div>
 
             {authError && (
@@ -322,7 +399,7 @@ export default function FounderDashboard() {
             </button>
           </form>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -359,6 +436,16 @@ export default function FounderDashboard() {
                 }`}
               >
                 Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('pricing')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                  activeTab === 'pricing'
+                    ? 'bg-neutral-800 text-neutral-100 shadow'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                Pricing Tiers
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
@@ -517,6 +604,48 @@ export default function FounderDashboard() {
               )}
             </div>
           </div>
+        ) : activeTab === 'pricing' ? (
+          /* ==========================================
+             PRICING TIERS TAB (Multi-Currency Options)
+             ========================================== */
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-100">Subscription Tiers</h2>
+              <p className="text-xs text-neutral-400">Choose a plan or let clients select their tier for automated dunning.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {TIERS.map((tier) => (
+                <div key={tier.name} className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-base font-semibold text-neutral-100">{tier.name}</h3>
+                    <p className="text-xs text-neutral-400 mt-1">{tier.description}</p>
+                    <div className="mt-4">
+                      <div className="text-2xl font-bold text-neutral-100">
+                        R{tier.priceZar} <span className="text-xs text-neutral-500 font-normal">/ {tier.interval}</span>
+                      </div>
+                      <div className="text-xs text-indigo-400 font-medium mt-0.5">
+                        or ${tier.priceUsd} USD (International)
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 space-y-2">
+                    <button
+                      onClick={() => handlePaystackCheckout(tier)}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition shadow"
+                    >
+                      Pay R{tier.priceZar} (Paystack - ZAR)
+                    </button>
+                    <button
+                      onClick={() => handlePayoneerCheckout(tier)}
+                      className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 rounded-xl text-xs font-semibold transition"
+                    >
+                      Pay ${tier.priceUsd} (Payoneer - USD)
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           /* ==========================================
              SETTINGS TAB: TENANT & API KEYS
@@ -525,7 +654,7 @@ export default function FounderDashboard() {
             <div className="mb-6">
               <h2 className="text-base font-semibold text-neutral-100">Workspace & Gateway Settings</h2>
               <p className="text-xs text-neutral-400">
-                Configure your business billing credentials and gateway integration.
+                Configure your local Paystack gateway, Resend emails, and Payoneer global account details.
               </p>
             </div>
 
@@ -581,6 +710,7 @@ export default function FounderDashboard() {
               </div>
 
               <div className="pt-4 border-t border-neutral-800 space-y-4">
+                <h3 className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Local Gateway (Paystack)</h3>
                 <div>
                   <label className="block text-xs font-medium text-neutral-400 mb-1">
                     Paystack Public Key
@@ -609,6 +739,28 @@ export default function FounderDashboard() {
                     className="w-full px-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 font-mono focus:outline-none focus:border-indigo-500 transition"
                   />
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-neutral-800 space-y-4">
+                <h3 className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Global Payouts (Payoneer)</h3>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1">
+                    Payoneer Account Email / ID (For International Clients)
+                  </label>
+                  <input
+                    type="email"
+                    value={settingsForm.payoneer_email}
+                    onChange={(e) =>
+                      setSettingsForm({ ...settingsForm, payoneer_email: e.target.value })
+                    }
+                    placeholder="billing@yourglobaldomain.com"
+                    className="w-full px-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 font-mono focus:outline-none focus:border-indigo-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-neutral-800 space-y-4">
+                <h3 className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Email Sequences (Resend)</h3>
                 <div>
                   <label className="block text-xs font-medium text-neutral-400 mb-1">
                     Resend API Key
