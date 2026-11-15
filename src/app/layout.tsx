@@ -20,7 +20,7 @@ export default function RootLayout({
         {/* Load Paystack Inline SDK */}
         <Script
           src="https://js.paystack.co/v1/inline.js"
-          strategy="lazyOnload"
+          strategy="afterInteractive"
         />
       </body>
     </html>

@@ -378,25 +378,30 @@ export default function FounderDashboard() {
               </p>
             )}
 
-            <button
-              type="submit"
-              className="w-full bg-neutral-100 hover:bg-white text-neutral-950 font-semibold py-2.5 rounded-xl text-sm transition shadow"
-            >
-              {authMode === 'login' ? 'Sign In' : 'Create Founder Account'}
-            </button>
+            {/* Action Buttons Stack (Centered & Spaced Properly) */}
+            <div className="flex flex-col gap-3 pt-2">
+              <button
+                type="submit"
+                className="w-full bg-neutral-100 hover:bg-white text-neutral-950 font-semibold py-2.5 rounded-xl text-sm transition shadow"
+              >
+                {authMode === 'login' ? 'Sign In' : 'Create Founder Account'}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode(authMode === 'login' ? 'signup' : 'login');
-                setAuthError(null);
-              }}
-              className="w-full text-center text-xs text-neutral-400 hover:text-neutral-200 transition pt-2"
-            >
-              {authMode === 'login'
-                ? "Don't have a workspace? Register here"
-                : 'Already registered? Sign in'}
-            </button>
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode(authMode === 'login' ? 'signup' : 'login');
+                    setAuthError(null);
+                  }}
+                  className="text-xs text-neutral-400 hover:text-neutral-200 transition"
+                >
+                  {authMode === 'login'
+                    ? "Don't have a workspace? Register here"
+                    : 'Already registered? Sign in'}
+                </button>
+              </div>
+            </div>
           </form>
         </div>
       </div>

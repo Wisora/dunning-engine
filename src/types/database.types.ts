@@ -29,6 +29,7 @@ export interface Database {
           paystack_public_key: string | null;
           paystack_secret_key: string | null;
           resend_api_key: string | null;
+          payoneer_email: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -41,6 +42,7 @@ export interface Database {
           paystack_public_key?: string | null;
           paystack_secret_key?: string | null;
           resend_api_key?: string | null;
+          payoneer_email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -53,6 +55,7 @@ export interface Database {
           paystack_public_key?: string | null;
           paystack_secret_key?: string | null;
           resend_api_key?: string | null;
+          payoneer_email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
