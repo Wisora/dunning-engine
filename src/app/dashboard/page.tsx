@@ -105,7 +105,7 @@ export default function FounderDashboard() {
           paystack_public_key: tenantData.paystack_public_key || '',
           paystack_secret_key: tenantData.paystack_secret_key || '',
           resend_api_key: tenantData.resend_api_key || '',
-          payoneer_email: (tenantData as any).payoneer_email || '',
+          payoneer_email: tenantData.payoneer_email || '',
         });
 
         const { data: invoiceData, error: invoiceErr } = await supabase
@@ -200,7 +200,7 @@ export default function FounderDashboard() {
             paystack_secret_key: settingsForm.paystack_secret_key || null,
             resend_api_key: settingsForm.resend_api_key || null,
             payoneer_email: settingsForm.payoneer_email || null,
-          } as any)
+          })
           .eq('id', tenant.id);
 
         if (error) throw error;
@@ -217,7 +217,7 @@ export default function FounderDashboard() {
             paystack_secret_key: settingsForm.paystack_secret_key || null,
             resend_api_key: settingsForm.resend_api_key || null,
             payoneer_email: settingsForm.payoneer_email || null,
-          } as any)
+          })
           .select()
           .single();
 
@@ -237,6 +237,15 @@ export default function FounderDashboard() {
   const handlePaystackCheckout = (tier: typeof TIERS[0]) => {
     if (!session?.user?.email) return;
     
+    // Resolve public key from form state or env fallback
+    const publicKey = settingsForm.paystack_public_key || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+
+    if (!publicKey || publicKey.trim() === '') {
+      alert('Please configure your Payoneer or Paystack Public Key in Settings first.');
+      setActiveTab('settings');
+      return;
+    }
+
     // Checks for Paystack Inline script
     const paystackPop = (window as any).PaystackPop;
     if (!paystackPop) {
@@ -245,7 +254,7 @@ export default function FounderDashboard() {
     }
 
     const handler = paystackPop.setup({
-      key: settingsForm.paystack_public_key || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
+      key: publicKey,
       email: session.user.email,
       amount: tier.priceZar * 100, // Subunits in ZAR (cents)
       currency: 'ZAR',
